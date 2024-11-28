@@ -26,3 +26,18 @@
 
 ;; Non-fungible token definition
 (define-non-fungible-token bitcoin-fraction (string-ascii 64))
+
+;; Storage map for UTXO details with extended metadata
+(define-map bitcoin-utxo-storage 
+  { utxo-id: (string-ascii 64) }
+  {
+    total-fractions: uint,
+    available-fractions: uint,
+    owner: principal,
+    bitcoin-address: (string-ascii 35),
+    original-value: uint,
+    is-locked: bool,
+    is-tradable: bool,
+    creation-time: uint
+  }
+)
