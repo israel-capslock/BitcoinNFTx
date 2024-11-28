@@ -169,3 +169,33 @@
     (ok true)
   )
 )
+
+;; Burn fractionalized Bitcoin NFT
+(define-public (burn-fraction
+  (utxo-id (string-ascii 64))
+)
+  (let 
+    (
+      (utxo-details 
+        (unwrap! 
+          (map-get? bitcoin-utxo-storage { utxo-id: utxo-id }) 
+          ERR-INVALID-FRACTIONS
+        )
+    )
+    )
+    ;; Validate burn conditions
+    (asserts! (is-eq tx-sender (get owner utxo-details)) ERR-NOT-OWNER)
+    (asserts! (is-eq (get available-fractions utxo-details) (get total-fractions utxo-details)) ERR-INSUFFICIENT-FRACTIONS)
+
+    ;; Burn NFT
+    (try! 
+      (nft-burn? bitcoin-fraction utxo-id tx-sender)
+    )
+
+    ;; Remove UTXO details and fraction ownership
+    (map-delete bitcoin-utxo-storage { utxo-id: utxo-id })
+    (map-delete fraction-ownership { utxo-id: utxo-id, holder: tx-sender })
+
+    (ok true)
+  )
+)
