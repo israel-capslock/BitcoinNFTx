@@ -199,3 +199,30 @@
     (ok true)
   )
 )
+
+;; Administrative function to toggle tradability
+(define-public (set-fraction-tradability 
+  (utxo-id (string-ascii 64))
+  (is-tradable bool)
+)
+  (let 
+    (
+      (utxo-details 
+        (unwrap! 
+          (map-get? bitcoin-utxo-storage { utxo-id: utxo-id }) 
+          ERR-INVALID-FRACTIONS
+        )
+    )
+    )
+    ;; Only contract owner can modify tradability
+    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-UNAUTHORIZED-TRANSFER)
+
+    ;; Update tradability
+    (map-set bitcoin-utxo-storage 
+      { utxo-id: utxo-id }
+      (merge utxo-details { is-tradable: is-tradable })
+    )
+
+    (ok true)
+  )
+)
