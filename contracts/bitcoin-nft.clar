@@ -107,3 +107,65 @@
     (ok true)
   )
 )
+
+;; Transfer fractions between users
+(define-public (transfer-fraction
+  (utxo-id (string-ascii 64))
+  (new-owner principal)
+  (fraction-amount uint)
+)
+  (let 
+    (
+      (utxo-details 
+        (unwrap! 
+          (map-get? bitcoin-utxo-storage { utxo-id: utxo-id }) 
+          ERR-INVALID-FRACTIONS
+        )
+      )
+      (sender-current-fractions 
+        (default-to u0 
+          (get fraction-count 
+            (map-get? fraction-ownership { utxo-id: utxo-id, holder: tx-sender })
+          )
+        )
+      )
+      (recipient-current-fractions 
+        (default-to u0 
+          (get fraction-count 
+            (map-get? fraction-ownership { utxo-id: utxo-id, holder: new-owner })
+          )
+        )
+      )
+    )
+    ;; Validation checks
+    (asserts! (get is-tradable utxo-details) ERR-FRACTION-TRADING-DISABLED)
+    (asserts! (is-eq tx-sender (get owner utxo-details)) ERR-NOT-OWNER)
+    (asserts! (>= sender-current-fractions fraction-amount) ERR-INSUFFICIENT-FRACTIONS)
+    (asserts! (> fraction-amount u0) ERR-INVALID-FRACTIONS)
+
+    ;; Update fraction ownership
+    (map-set fraction-ownership 
+      { utxo-id: utxo-id, holder: tx-sender }
+      { fraction-count: (- sender-current-fractions fraction-amount) }
+    )
+    (map-set fraction-ownership 
+      { utxo-id: utxo-id, holder: new-owner }
+      { fraction-count: (+ recipient-current-fractions fraction-amount) }
+    )
+
+    ;; Update UTXO storage if needed
+    (map-set bitcoin-utxo-storage 
+      { utxo-id: utxo-id }
+      (merge utxo-details { 
+        available-fractions: (- (get available-fractions utxo-details) fraction-amount) 
+      })
+    )
+
+    ;; Transfer NFT
+    (try! 
+      (nft-transfer? bitcoin-fraction utxo-id tx-sender new-owner)
+    )
+
+    (ok true)
+  )
+)
