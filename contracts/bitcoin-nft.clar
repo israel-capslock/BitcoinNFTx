@@ -23,6 +23,7 @@
 (define-constant ERR-INVALID-BITCOIN-ADDRESS (err u7))
 (define-constant ERR-UNAUTHORIZED-TRANSFER (err u8))
 (define-constant ERR-FRACTION-TRADING-DISABLED (err u9))
+(define-constant ERR-INVALID-PRINCIPAL (err u10))
 
 ;; Non-fungible token definition
 (define-non-fungible-token bitcoin-fraction (string-ascii 64))
@@ -51,6 +52,18 @@
 ;; Contract owner
 (define-constant CONTRACT-OWNER tx-sender)
 
+;; Enhanced input validation functions
+(define-private (is-valid-utxo-id (utxo-id (string-ascii 64)))
+  (and 
+    (> (len utxo-id) u0) 
+    (<= (len utxo-id) u64)
+  )
+)
+
+(define-private (is-valid-principal (principal-to-check principal))
+  (not (is-eq principal-to-check tx-sender))
+)
+
 ;; Create a fractionalized Bitcoin NFT
 (define-public (create-fraction 
   (utxo-id (string-ascii 64))
@@ -61,8 +74,7 @@
   (begin
     ;; Comprehensive input validations
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-UNAUTHORIZED-TRANSFER)
-    (asserts! (> (len utxo-id) u0) ERR-INVALID-UTXO-ID)
-    (asserts! (<= (len utxo-id) u64) ERR-INVALID-UTXO-ID)
+    (asserts! (is-valid-utxo-id utxo-id) ERR-INVALID-UTXO-ID)
     (asserts! (is-valid-bitcoin-length bitcoin-address) ERR-INVALID-BITCOIN-ADDRESS)
     (asserts! (> total-fractions u0) ERR-INVALID-FRACTIONS)
     (asserts! (> original-value u0) ERR-INVALID-FRACTIONS)
@@ -138,6 +150,8 @@
       )
     )
     ;; Validation checks
+    (asserts! (is-valid-utxo-id utxo-id) ERR-INVALID-UTXO-ID)
+    (asserts! (is-valid-principal new-owner) ERR-INVALID-PRINCIPAL)
     (asserts! (get is-tradable utxo-details) ERR-FRACTION-TRADING-DISABLED)
     (asserts! (is-eq tx-sender (get owner utxo-details)) ERR-NOT-OWNER)
     (asserts! (>= sender-current-fractions fraction-amount) ERR-INSUFFICIENT-FRACTIONS)
@@ -184,6 +198,7 @@
     )
     )
     ;; Validate burn conditions
+    (asserts! (is-valid-utxo-id utxo-id) ERR-INVALID-UTXO-ID)
     (asserts! (is-eq tx-sender (get owner utxo-details)) ERR-NOT-OWNER)
     (asserts! (is-eq (get available-fractions utxo-details) (get total-fractions utxo-details)) ERR-INSUFFICIENT-FRACTIONS)
 
@@ -215,6 +230,7 @@
     )
     )
     ;; Only contract owner can modify tradability
+    (asserts! (is-valid-utxo-id utxo-id) ERR-INVALID-UTXO-ID)
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-UNAUTHORIZED-TRANSFER)
 
     ;; Update tradability
