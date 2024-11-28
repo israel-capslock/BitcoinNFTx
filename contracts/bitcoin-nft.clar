@@ -226,3 +226,18 @@
     (ok true)
   )
 )
+
+;; Read-only function to get UTXO details
+(define-read-only (get-fraction-details 
+  (utxo-id (string-ascii 64))
+)
+  (map-get? bitcoin-utxo-storage { utxo-id: utxo-id })
+)
+
+;; Read-only function to get fraction ownership
+(define-read-only (get-fraction-ownership 
+  (utxo-id (string-ascii 64))
+  (holder principal)
+)
+  (map-get? fraction-ownership { utxo-id: utxo-id, holder: holder })
+)
