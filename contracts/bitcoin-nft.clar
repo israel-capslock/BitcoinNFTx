@@ -41,3 +41,69 @@
     creation-time: uint
   }
 )
+
+;; Fraction ownership tracking
+(define-map fraction-ownership
+  { utxo-id: (string-ascii 64), holder: principal }
+  { fraction-count: uint }
+)
+
+;; Contract owner
+(define-constant CONTRACT-OWNER tx-sender)
+
+;; Create a fractionalized Bitcoin NFT
+(define-public (create-fraction 
+  (utxo-id (string-ascii 64))
+  (bitcoin-address (string-ascii 35))
+  (original-value uint)
+  (total-fractions uint)
+)
+  (begin
+    ;; Comprehensive input validations
+    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-UNAUTHORIZED-TRANSFER)
+    (asserts! (> (len utxo-id) u0) ERR-INVALID-UTXO-ID)
+    (asserts! (<= (len utxo-id) u64) ERR-INVALID-UTXO-ID)
+    (asserts! (is-valid-bitcoin-length bitcoin-address) ERR-INVALID-BITCOIN-ADDRESS)
+    (asserts! (> total-fractions u0) ERR-INVALID-FRACTIONS)
+    (asserts! (> original-value u0) ERR-INVALID-FRACTIONS)
+
+    ;; Check if UTXO is already fractionalized
+    (asserts! 
+      (is-eq 
+        (default-to false 
+          (get is-locked 
+            (map-get? bitcoin-utxo-storage { utxo-id: utxo-id }))) 
+        false
+      ) 
+      ERR-ALREADY-FRACTIONALIZED
+    )
+
+    ;; Store UTXO details with extended metadata
+    (map-set bitcoin-utxo-storage 
+      { utxo-id: utxo-id }
+      {
+        total-fractions: total-fractions,
+        available-fractions: total-fractions,
+        owner: tx-sender,
+        bitcoin-address: bitcoin-address,
+        original-value: original-value,
+        is-locked: true,
+        is-tradable: true,
+        creation-time: block-height
+      }
+    )
+
+    ;; Initial fraction ownership
+    (map-set fraction-ownership 
+      { utxo-id: utxo-id, holder: tx-sender }
+      { fraction-count: total-fractions }
+    )
+
+    ;; Mint NFT
+    (try! 
+      (nft-mint? bitcoin-fraction utxo-id tx-sender)
+    )
+
+    (ok true)
+  )
+)
