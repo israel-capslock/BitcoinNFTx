@@ -241,3 +241,11 @@
 )
   (map-get? fraction-ownership { utxo-id: utxo-id, holder: holder })
 )
+
+;; Utility function to validate Bitcoin address length
+(define-private (is-valid-bitcoin-length (address (string-ascii 35)))
+  (and 
+    (>= (len address) u26)
+    (<= (len address) u35)
+  )
+)
